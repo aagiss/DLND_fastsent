@@ -466,7 +466,7 @@ double test(nn_weights *W, dataset *data, double *mae, int print_confusion_matri
 }
 
 /*****************************************************************************
-** TESTING / FEED FORWARD & BACKPROPAGATION
+** TRAINING / FEED FORWARD & BACKPROPAGATION
 *****************************************************************************/
 void *thread_train(void *vargp){
 	train_thread_subset *prms = (train_thread_subset *)vargp;
