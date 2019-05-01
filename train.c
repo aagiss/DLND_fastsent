@@ -574,7 +574,7 @@ int main(int argc, const char **argv){
 	int decay_step = 100;
 	int hidden_units = 50;
 	int subsample = 10;
-	int t = 1; // NUMBER_OF_THREADS
+	int t = 8; // NUMBER_OF_THREADS
 	if(!train_fp){
 		printf("could not find %s\n", argv[1]);
 		return 1;
