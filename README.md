@@ -15,7 +15,13 @@ Key implementation info:
 
 <h3>Usage:</h3>
 <pre>./fastsent_train TRAIN_FILE VALIDATION_FILE TEST_FILE</pre>
+
+
 <i>Validation_file needed for early stopping</i>
+
+
 <i>All files in the sample.input format</i>
+
+
 <i>Output metrics: 1rst train, 2nd validation, 3rd test</i>
 
