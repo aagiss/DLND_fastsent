@@ -13,7 +13,7 @@ Key implementation info:
 6) Learning Rate range test so no need to specify learning rate 
 7) Learning Rate decay
 8) Two sentiment outputs objectivity/subjectivity and polarity (measure and score)
-9) All the above in 706 lines of pure C
+9) All the above in 706 lines of pure C without using external frameworks or libraries
 
 <h3>Usage:</h3>
 <pre>./fastsent_train TRAIN_FILE VALIDATION_FILE TEST_FILE</pre>
