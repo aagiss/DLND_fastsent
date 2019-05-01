@@ -9,8 +9,9 @@ Key implementation info:
 2) Multi-Threaded
 3) NN Weights saved/loaded
 4) Early Stopping so no need to specify number of epochs
-5) Learning Rate range test so no need to specify learning rate
-6) Two sentiment outputs objectivity/subjectivity and polarity (measure and score)
+5) Learning Rate range test so no need to specify learning rate 
+6) Learning Rate decay
+7) Two sentiment outputs objectivity/subjectivity and polarity (measure and score)
 
 <h3>Usage:</h3>
 <pre>./fastsent_train TRAIN_FILE VALIDATION_FILE TEST_FILE</pre>
