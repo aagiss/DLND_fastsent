@@ -7,11 +7,13 @@ During the <b>Deep Learning Udacity Nanodegree</b>, we were asked to implement a
 Key implementation info:
 1) Pure C even for Backpropagation and Stochastic Gradient Descent
 2) Multi-Threaded
-3) NN Weights saved/loaded
-4) Early Stopping so no need to specify number of epochs
-5) Learning Rate range test so no need to specify learning rate 
-6) Learning Rate decay
-7) Two sentiment outputs objectivity/subjectivity and polarity (measure and score)
+3) Fast file loading
+4) NN Weights saved/loaded
+5) Early Stopping so no need to specify number of epochs
+6) Learning Rate range test so no need to specify learning rate 
+7) Learning Rate decay
+8) Two sentiment outputs objectivity/subjectivity and polarity (measure and score)
+9) All the above in 706 lines of pure C
 
 <h3>Usage:</h3>
 <pre>./fastsent_train TRAIN_FILE VALIDATION_FILE TEST_FILE</pre>
