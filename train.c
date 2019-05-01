@@ -307,18 +307,17 @@ int load_dataset(FILE *fp, dataset *res, char **train_words, int train_word_coun
 *****************************************************************************/
 void weights_init(int word_count, int hidden_units, nn_weights *W, int init_random){
 	int i,j;
+	word_count++;
 	W->word_count = word_count;
 	W->hidden_units = hidden_units;
 	W->weights_i_h = (double *)malloc(sizeof(double)*word_count*hidden_units);
 	W->bias_i_h = (double *)malloc(sizeof(double)*hidden_units);
-	W->weights_h_o = (double *)malloc(sizeof(double)*(hidden_units+word_count)*2);
-	W->bias_h_o = (double *)malloc(sizeof(double)*2);
+	W->weights_h_o = (double *)malloc(sizeof(double)*hidden_units);
+	W->bias_h_o = (double *)malloc(sizeof(double));
 	for(i=word_count*hidden_units-1;i>=0;i--) W->weights_i_h[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
 	for(i=hidden_units-1;i>=0;i--) W->bias_i_h[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
-	for(j=0;j<2;j++){
-		for(i=(hidden_units+word_count)*j;i < ((hidden_units+word_count)*(j+1));i++) W->weights_h_o[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
-	}
-	for(i=2-1;i>=0;i--) W->bias_h_o[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
+	for(i=hidden_units-1;i>=0;i--) W->weights_h_o[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
+	W->bias_h_o[0] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
 }
 
 void weights_save(nn_weights *W, const char *filename){
@@ -327,8 +326,8 @@ void weights_save(nn_weights *W, const char *filename){
 	fwrite(&W->hidden_units, sizeof(W->hidden_units), 1, fp);
 	fwrite(W->weights_i_h, sizeof(double), W->word_count * W->hidden_units, fp);
 	fwrite(W->bias_i_h, sizeof(double), W->hidden_units, fp);
-	fwrite(W->weights_h_o, sizeof(double), (W->hidden_units + W->word_count) * 2, fp);
-	fwrite(W->bias_h_o, sizeof(double), 2, fp);
+	fwrite(W->weights_h_o, sizeof(double), W->hidden_units, fp);
+	fwrite(W->bias_h_o, sizeof(double), 1, fp);
 	fclose(fp);
 }
 
@@ -338,12 +337,12 @@ void weights_load(nn_weights *W, const char *filename){
 	fread(&W->hidden_units, sizeof(W->hidden_units), 1, fp);
 	W->weights_i_h = (double *)malloc(sizeof(double)*W->word_count*W->hidden_units);
 	W->bias_i_h = (double *)malloc(sizeof(double)*W->hidden_units);
-	W->weights_h_o = (double *)malloc(sizeof(double)*(W->hidden_units+W->word_count)*2);
-	W->bias_h_o = (double *)malloc(sizeof(double)*2);
+	W->weights_h_o = (double *)malloc(sizeof(double)*W->hidden_units);
+	W->bias_h_o = (double *)malloc(sizeof(double));
 	fread(W->weights_i_h, sizeof(double), W->word_count * W->hidden_units, fp);
 	fread(W->bias_i_h, sizeof(double), W->hidden_units, fp);
-	fread(W->weights_h_o, sizeof(double), (W->hidden_units + W->word_count) * 2, fp);
-	fread(W->bias_h_o, sizeof(double), 2, fp);
+	fread(W->weights_h_o, sizeof(double), W->hidden_units, fp);
+	fread(W->bias_h_o, sizeof(double), 1, fp);
 	fclose(fp);
 }
 /*****************************************************************************
@@ -369,12 +368,20 @@ double activation_tanh_derivative(double x){
 	return 1 - s * s;
 }
 
+double activation_relu(double x){
+	return (x>0) ? x : 0;
+}
+
+double activation_relu_derivative(double x){
+	return (x>0) ? 1 : 0;
+}
+
 double activation_hidden(double x){
-	return (x > 0) ? x : 0.01 * x;
+	return activation_tanh(x);
 }
 
 double activation_hidden_derivative(double x){
-	return (x > 0) ? 1 : 0.01;
+	return activation_tanh_derivative(x);
 }
 
 double activation_measure(double x){
@@ -432,35 +439,22 @@ double test(nn_weights *W, dataset *data, double *mae, int print_confusion_matri
 		for(j = 0; j < W->hidden_units; j++){
 			output_measure += W->weights_h_o[j] * hidden_outputs[j];
 		}
-		for(w = 0; w < wc; w++){
-			output_measure += W->weights_h_o[W->hidden_units+inputs[w]];
-		}
 		output_measure += W->bias_h_o[0];
 		output_measure = activation_measure(output_measure);
-		// Forward pass: get score 
-		output_score = 0;
-		for(j = 0; j < W->hidden_units; j++){
-			output_score += W->weights_h_o[W->hidden_units + W->word_count + j] * hidden_outputs[j];
-		}
-		for(w = 0; w < wc; w++){
-			output_score += W->weights_h_o[W->hidden_units + W->word_count + W->hidden_units+inputs[w]];
-		}
-		output_score += W->bias_h_o[1];
-		output_score = activation_score(output_score);
 		// update confusion matrix
-		a = 1+data->samples[i].label;
-		p = (output_measure < 0.5) ? 1 : ((output_score > 0)? 2 : 0);
+		a = abs(data->samples[i].label);
+		p = (output_measure < 0.5) ? 0 : 1; // ((output_score > 0)? 2 : 0);
 		cm[a][p]++;
 		// update mae
-		*mae += fabs(abs(a-1)-output_measure) + fabs(a-p);
+		*mae += fabs(a-output_measure);// + fabs(a-p);
 	}
 	*mae /= data->sample_count;
 	// print confusion matrix
 	int total = 0;
 	int correct = 0;
-	for(a = 0; a < 3; a++){
+	for(a = 0; a < 2; a++){
 		if(print_confusion_matrix) printf("|\t");
-		for(p = 0; p < 3; p++){
+		for(p = 0; p < 2; p++){
 			if(print_confusion_matrix) printf("% 6d\t|\t",cm[a][p]);
 			total += cm[a][p];
 			if(a==p) correct += cm[a][p];
@@ -496,6 +490,8 @@ void *thread_train(void *vargp){
 		memset(hidden_outputs, 0, sizeof(double)*W->hidden_units);
 		for(j = 0; j < W->hidden_units; j++){
 			for(w = 0, wp = W->weights_i_h + j * W->word_count; w < wc; w++){
+				if(inputs[w] < 0 || inputs[w] >= W->word_count){
+				}
 				hidden_outputs[j] += wp[inputs[w]];
 			}
 			hidden_outputs[j] += W->bias_i_h[j];
@@ -506,27 +502,12 @@ void *thread_train(void *vargp){
 		for(j = 0, wp = W->weights_h_o; j < W->hidden_units; j++, wp++){
 			output_measure += *wp * hidden_outputs[j];
 		}
-		for(w = 0, wp = W->weights_h_o + W->hidden_units; w < wc; w++){
-			output_measure += wp[inputs[w]];
-		}
 		output_measure += W->bias_h_o[0];
 		output_measure = activation_measure(output_measure);
-		// Forward pass: get score 
-		output_score = 0;
-		for(j = 0, wp = W->weights_h_o + W->hidden_units + W->word_count; j < W->hidden_units; j++, wp++){
-			output_score += *wp * hidden_outputs[j];
-		}
-		for(w = 0, wp = W->weights_h_o + W->hidden_units + W->word_count + W->hidden_units; w < wc; w++){
-			output_score += wp[inputs[w]];
-		}
-		output_score += W->bias_h_o[1];
-		output_score = activation_score(output_score);
 		// calculate errors
 		double output_error_measure = abs(data->samples[i].label) - output_measure;
-		double output_error_score = data->samples[i].label - output_score;
-		error_measure_sum += fabs(output_error_measure) + fabs(output_error_score);
+		error_measure_sum += fabs(output_error_measure);// + fabs(output_error_score);
 		double output_error_term_measure = output_error_measure * activation_measure_derivative(output_measure);
-		double output_error_term_score = output_error_score * activation_score_derivative(output_score);
 		for(j = 0; j < W->hidden_units; j++){
 			double hidden_error_term = W->weights_h_o[j] * output_error_term_measure * activation_hidden_derivative(hidden_outputs[j]);
 			for(w = 0; w < wc; w++){
@@ -537,26 +518,7 @@ void *thread_train(void *vargp){
 		for(j = 0; j < W->hidden_units; j++){
 			prms->delta->weights_h_o[j] += output_error_term_measure * hidden_outputs[j];
 		}
-		for(w = 0; w < wc; w++){
-			prms->delta->weights_h_o[W->hidden_units+inputs[w]] += output_error_term_measure * 1;
-		}
 		prms->delta->bias_h_o[0] += output_error_term_measure;
-		if(data->samples[i].label != 100000){
-			for(j = 0; j < W->hidden_units; j++){
-				double hidden_error_term = W->weights_h_o[W->hidden_units + W->word_count + j] * output_error_term_score * activation_hidden_derivative(hidden_outputs[j]);
-				for(w = 0; w < wc; w++){
-					prms->delta->weights_i_h[W->word_count*j + inputs[w]] += hidden_error_term * 1;
-				}
-				prms->delta->bias_i_h[j] += hidden_error_term;
-			}
-			for(j = 0; j < W->hidden_units; j++){
-				prms->delta->weights_h_o[W->hidden_units + W->word_count + j] += output_error_term_score * hidden_outputs[j];
-			}
-			for(w = 0; w < wc; w++){
-				prms->delta->weights_h_o[W->hidden_units + W->word_count + W->hidden_units + inputs[w]] += output_error_term_score * 1;
-			}
-			prms->delta->bias_h_o[1] += output_error_term_measure;
-		}
 	}
 	free(hidden_outputs);
 	return NULL;
@@ -587,11 +549,10 @@ void train_epoch(int threads, int subsample, double lr, nn_weights *W, dataset *
 			}
 			W->bias_i_h[j] += lr * delta.bias_i_h[j] / data->sample_count;
 		}
-		for(j = 0; j < 2*(W->hidden_units+W->word_count); j++){
+		for(j = 0; j < W->hidden_units; j++){
 			W->weights_h_o[j] += lr * delta.weights_h_o[j] / data->sample_count;
 		}
 		W->bias_h_o[0] += lr * delta.bias_h_o[0] / data->sample_count;
-		W->bias_h_o[1] += lr * delta.bias_h_o[1] / data->sample_count;
 	}
 	free(delta.weights_i_h);
 	free(delta.bias_i_h);
@@ -613,7 +574,7 @@ int main(int argc, const char **argv){
 	int decay_step = 100;
 	int hidden_units = 50;
 	int subsample = 10;
-	int t = 8;
+	int t = 1; // NUMBER_OF_THREADS
 	if(!train_fp){
 		printf("could not find %s\n", argv[1]);
 		return 1;
