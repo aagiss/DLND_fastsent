@@ -564,6 +564,9 @@ void train_epoch(int threads, int subsample, double lr, nn_weights *W, dataset *
 	free(thread_data);
 }
 
+/*****************************************************************************
+** MAIN: EARLY STOPPING / LEARNING RATE RANGE TEST 
+*****************************************************************************/
 int main(int argc, const char **argv){
 	if(argc <= 3){
 		printf("please specify a training and validation file name\n");
