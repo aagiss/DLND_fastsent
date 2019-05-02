@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
+#include <sys/types.h>
 
 /*****************************************************************************
 ** DATA STRUCTURES
