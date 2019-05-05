@@ -637,6 +637,7 @@ int main(int argc, const char **argv){
 	int e;
 	// lr_range_test
 	printf("learning rate range test...\n");
+	fflush(stdout);
 	weights_save(&W, "nn.weights");
 	for(lr = 0.01; lr <= 2; lr /= 0.9){
 		train_epoch(t, subsample, lr, &W, &train_set);
@@ -657,6 +658,7 @@ int main(int argc, const char **argv){
 	lr = best_lr;
 	grace = 0;
 	printf("learning rate = %lf\n", lr);
+	fflush(stdout);
 	weights_load(&W, "nn.weights");
 	// training loop 
 	for(epoch = 0; epoch < 10000; epoch++){
@@ -692,6 +694,7 @@ int main(int argc, const char **argv){
 			if(grace > 5){
 				break;
 			}
+			fflush(stdout);
 		}
 		if(lr > 0.01 && epoch % decay_step == decay_step-1) lr *= 0.9;
 	}
