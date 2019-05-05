@@ -204,11 +204,11 @@ int load_dataset(FILE *fp, dataset *res, char **train_words, int train_word_coun
 		}
 	}
 	if(lc != line_count){
-		fprintf(stderr, "internal error 1 %d!=%d\n", lc, line_count);
+		fprintf(stderr, "internal error 1 %d!=%ld\n", lc, line_count);
 		return 1;
 	}
 	if(wc != word_count){
-		fprintf(stderr, "internal error 2 %d!=%d\n", wc, word_count);
+		fprintf(stderr, "internal error 2 %d!=%ld\n", wc, word_count);
 		return 1;
 	}
 	// make a unique list of words
@@ -290,11 +290,11 @@ int load_dataset(FILE *fp, dataset *res, char **train_words, int train_word_coun
 		}
 	}
 	if(lc != line_count){
-		fprintf(stderr, "internal error 1 %d!=%d\n", lc, line_count);
+		fprintf(stderr, "internal error 1 %d!=%ld\n", lc, line_count);
 		return 1;
 	}
 	if(wc != word_count){
-		fprintf(stderr, "internal error 2 %d!=%d\n", wc, word_count);
+		fprintf(stderr, "internal error 2 %d!=%ld\n", wc, word_count);
 		return 1;
 	}
 	free(buf);
@@ -598,24 +598,24 @@ int main(int argc, const char **argv){
 		return rv;
 	}
 	fclose(train_fp);
-	printf("TRAIN: %d samples\n", train_set.sample_count);
-	printf("TRAIN: %d words\n", train_set.word_count);
+	printf("TRAIN: %ld samples\n", train_set.sample_count);
+	printf("TRAIN: %ld words\n", train_set.word_count);
 	dataset valid_set;
 	rv = load_dataset(valid_fp, &valid_set, train_set.words, train_set.word_count, cutoff);
 	if(rv != 0){
 		return rv;
 	}
 	fclose(valid_fp);
-	printf("VALID: %d samples\n", valid_set.sample_count);
-	printf("VALID: %d words\n", valid_set.word_count);
+	printf("VALID: %ld samples\n", valid_set.sample_count);
+	printf("VALID: %ld words\n", valid_set.word_count);
 	dataset test_set;
 	rv = load_dataset(test_fp, &test_set, train_set.words, train_set.word_count, cutoff);
 	if(rv != 0){
 		return rv;
 	}
 	fclose(test_fp);
-	printf("TEST: %d samples\n", test_set.sample_count);
-	printf("TEST: %d words\n", test_set.word_count);
+	printf("TEST: %ld samples\n", test_set.sample_count);
+	printf("TEST: %ld words\n", test_set.word_count);
 	nn_weights W;
 	if(1){
 		weights_init(train_set.word_count, hidden_units, &W, 1); 
