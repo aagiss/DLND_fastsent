@@ -28,3 +28,6 @@ Key implementation info:
 
 * <i>Output metrics: 1rst train, 2nd validation, 3rd test</i>
 
+<h3>Kaggle</h3>
+Data from Kaggle from competition https://www.kaggle.com/ywang311/twitter-sentiment added
+Winner LSTM: 80% accuracy, CURRENT 1-hidden-layer MLP: 77%
