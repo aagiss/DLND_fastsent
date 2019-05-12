@@ -2,7 +2,7 @@
 
 During the <b>Deep Learning Udacity Nanodegree</b>, we were asked to implement a neuralnet with 1 hidden layer in pure Python. This project is in pure C.
 
-<b>Code is NOT meant for production use, this project is actually a playground for me to better understand concepts and technology limitations</b> but still had better metrics than LSTM/CNN approaches tried on the same dataset.
+<b>Code is NOT meant for production use, this project is actually a playground for me to better understand concepts and technology limitations</b> but still had better metrics than LSTM/CNN approaches tried on some datasets.
 
 Key implementation info:
 1) Pure C even for Backpropagation and Stochastic Gradient Descent
@@ -14,7 +14,7 @@ Key implementation info:
 7) Learning Rate decay
 8) Appropriate weight initialization
 9) Two sentiment outputs objectivity/subjectivity and polarity (measure and score)
-10) All the above in 706 lines of pure C without using external frameworks or libraries
+10) All the above in 729 lines of pure C without using external frameworks or libraries
 
 <h3>Usage:</h3>
 <pre>./fastsent_train TRAIN_FILE VALIDATION_FILE TEST_FILE</pre>
@@ -23,7 +23,7 @@ Key implementation info:
 * <i>Validation_file needed for early stopping</i>
 
 
-* <i>All files in the sample.input format</i>
+* <i>All files in the kaggle.*.input format</i>
 
 
 * <i>Output metrics: 1rst train, 2nd validation, 3rd test</i>
