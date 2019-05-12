@@ -17,6 +17,7 @@ typedef struct SAMPLE{
 
 typedef struct DATASET{
 	long word_count;
+	float avg_words_per_doc;
 	char **words;
 	long sample_count;
 	sample *samples;
@@ -120,6 +121,8 @@ int load_dataset(FILE *fp, dataset *res, char **train_words, int train_word_coun
 	}
 	// remove labels
 	word_count -= line_count;
+	// set avg_words_per_doc
+	res->avg_words_per_doc = (float)word_count/(float)line_count;
 	// parse
 	labels = (int *)malloc(sizeof(int)*line_count);
 	line_starts = (char **)malloc(sizeof(char *)*(line_count+1));
@@ -307,7 +310,7 @@ int load_dataset(FILE *fp, dataset *res, char **train_words, int train_word_coun
 /*****************************************************************************
 ** WEIGHTS  
 *****************************************************************************/
-void weights_init(int word_count, int hidden_units, nn_weights *W, int init_random){
+void weights_init(int word_count, float avg_words_per_doc, int hidden_units, nn_weights *W, int init_random){
 	int i,j;
 	word_count++;
 	W->word_count = word_count;
@@ -316,10 +319,10 @@ void weights_init(int word_count, int hidden_units, nn_weights *W, int init_rand
 	W->bias_i_h = (double *)malloc(sizeof(double)*hidden_units);
 	W->weights_h_o = (double *)malloc(sizeof(double)*hidden_units);
 	W->bias_h_o = (double *)malloc(sizeof(double));
-	for(i=word_count*hidden_units-1;i>=0;i--) W->weights_i_h[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
-	for(i=hidden_units-1;i>=0;i--) W->bias_i_h[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
-	for(i=hidden_units-1;i>=0;i--) W->weights_h_o[i] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
-	W->bias_h_o[0] = (init_random) ? ((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5 : 0;
+	for(i=word_count*hidden_units-1;i>=0;i--) W->weights_i_h[i] = (init_random) ? (((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5)/sqrt(avg_words_per_doc) : 0;
+	for(i=hidden_units-1;i>=0;i--) W->bias_i_h[i] = 0;
+	for(i=hidden_units-1;i>=0;i--) W->weights_h_o[i] = (init_random) ? (((double)rand()) / ((unsigned)RAND_MAX + 1) - 0.5)/sqrt(hidden_units) : 0;
+	W->bias_h_o[0] = 0;
 }
 
 void weights_save(nn_weights *W, const char *filename){
@@ -531,7 +534,7 @@ void train_epoch(int threads, int subsample, double lr, nn_weights *W, dataset *
 	train_thread_subset *thread_data = (train_thread_subset *)malloc(sizeof(train_thread_subset) * threads);
 	pthread_t *thread_ids = (pthread_t *)malloc(sizeof(pthread_t) * threads);
 	nn_weights delta;
-	weights_init(W->word_count, W->hidden_units, &delta, 0); 
+	weights_init(W->word_count, 0, W->hidden_units, &delta, 0); 
 	for(s = 0; s < subsample; s++){
 		for(j = 0; j < threads; j++){
 			thread_data[j].subsample = subsample;
@@ -576,8 +579,8 @@ int main(int argc, const char **argv){
 	FILE *valid_fp = fopen(argv[2],"r");
 	FILE *test_fp = fopen(argv[3],"r");
 	int cutoff = 2;
-	int decay_step = 100;
-	int hidden_units = 50;
+	int decay_step = 1000;
+	int hidden_units = -1;
 	int subsample = 10;
 	int t = 8; // NUMBER_OF_THREADS
 	if(!train_fp){
@@ -600,6 +603,8 @@ int main(int argc, const char **argv){
 	fclose(train_fp);
 	printf("TRAIN: %ld samples\n", train_set.sample_count);
 	printf("TRAIN: %ld words\n", train_set.word_count);
+	hidden_units = (int)(log10(train_set.word_count)+2)*10;
+	printf("hidden_units: %d\n", hidden_units);
 	dataset valid_set;
 	rv = load_dataset(valid_fp, &valid_set, train_set.words, train_set.word_count, cutoff);
 	if(rv != 0){
@@ -618,7 +623,7 @@ int main(int argc, const char **argv){
 	printf("TEST: %ld words\n", test_set.word_count);
 	nn_weights W;
 	if(1){
-		weights_init(train_set.word_count, hidden_units, &W, 1); 
+		weights_init(train_set.word_count, train_set.avg_words_per_doc, hidden_units, &W, 1); 
 	}else{
 		weights_load(&W,"nn.weights");
 	}
@@ -628,6 +633,7 @@ int main(int argc, const char **argv){
 	double best_acc = 0;
 	double best_vacc = 0;
 	double best_vmae = 0;
+	double best_tmae = 0;
 	int grace = 0;
 	double best_tacc = 0;
 	double mae = 0;
@@ -663,7 +669,7 @@ int main(int argc, const char **argv){
 	// training loop 
 	for(epoch = 0; epoch < 10000; epoch++){
 		train_epoch(t, subsample, lr, &W, &train_set);
-		if(epoch % 20 == 0){
+		if(epoch % 30 == 0){
 			printf("-------------------------------------------------\n");
 			if(grace > 0){
 				printf("GRACE %d!!!!\n", grace);
@@ -671,14 +677,22 @@ int main(int argc, const char **argv){
 			printf("epoch: %d, learning rate: %.2lf\n", epoch, lr);
 			double acc = test(&W, &train_set, &mae, 1);
 			if(best_acc < acc) best_acc = acc;
-			printf("best_acc: %.2lf, acc: %.2lf, mae: %lf\n", best_acc, acc, mae);
+			// if bouncing drop learning rate
+			if(epoch == 0 || mae <= best_tmae){
+				best_tmae = mae;
+			}else{
+				if(lr <= 0.01) break;
+				lr *= 0.9;
+			}
+			printf("training_set best_acc: %.2lf, acc: %.2lf, mae: %lf\n", best_acc, acc, mae);
 			double vacc = test(&W, &valid_set, &mae, 1);
 			if(best_vacc < vacc){
 				best_vacc = vacc;
 				printf("Saving weights...\n");
 				weights_save(&W, "nn.weights");
 			}
-			printf("best_vacc: %.2lf, vacc: %.2lf, mae: %lf\n", best_vacc, vacc, mae);
+			printf("validation_set best_vacc: %.2lf, vacc: %.2lf, mae: %lf\n", best_vacc, vacc, mae);
+			// early stopping code
 			if(epoch == 0 || mae < best_vmae){
 				best_vmae = mae;
 				grace = 0;
@@ -690,7 +704,7 @@ int main(int argc, const char **argv){
 			}
 			double tacc = test(&W, &test_set, &mae, 1);
 			if(best_tacc < tacc) best_tacc = tacc;
-			printf("best_tacc: %.2lf, tacc: %.2lf, mae: %lf\n", best_tacc, tacc, mae);
+			printf("test_set best_tacc: %.2lf, tacc: %.2lf, mae: %lf\n", best_tacc, tacc, mae);
 			if(grace > 5){
 				break;
 			}
